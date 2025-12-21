@@ -1,0 +1,48 @@
+name: VPS Desktop
+on:
+  workflow_dispatch:
+
+jobs:
+  desktop-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Install Desktop + VNC
+        run: |
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11 novnc websockify
+
+          mkdir -p ~/.vnc
+          echo -e "123456\n123456\nn" | vncpasswd
+
+          cat <<EOF > ~/.vnc/xstartup
+          #!/bin/sh
+          unset SESSION_MANAGER
+          unset DBUS_SESSION_BUS_ADDRESS
+          exec startxfce4 &
+          EOF
+
+          chmod +x ~/.vnc/xstartup
+          vncserver -localhost no :1
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
+          tsIP=$(tailscale ip -4 | head -n 1)
+          echo "IP=$tsIP" >> $GITHUB_ENV
+
+      - name: Start Web Desktop (noVNC)
+        run: |
+          sudo ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+          nohup websockify --web=/usr/share/novnc 6080 localhost:5901 >/dev/null 2>&1 &
+          echo "=================================="
+          echo "🖥️ DESKTOP READY"
+          echo "🌐 URL: http://$IP:6080"
+          echo "🔑 Password: 123456"
+          echo "=================================="
+
+      - name: Keep VPS Alive
+        run: |
+          while true; do sleep 300; done
