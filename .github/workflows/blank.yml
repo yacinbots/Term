@@ -33,12 +33,20 @@ jobs:
 
       - name: Enable NLA
         run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Set-ItemProperty `
+            -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
+            -Name "UserAuthentication" -Value 1
 
       - name: Set runneradmin password
         run: |
-          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "@cyb3rking" -AsPlainText -Force)
+          Set-LocalUser -Name "runneradmin" `
+            -Password (ConvertTo-SecureString "@cyb3rking" -AsPlainText -Force)
 
-      - name: Start ngrok TCP tunnel
+      - name: Start ngrok TCP and print RDP address
         run: |
-          .\ngrok\ngrok.exe tcp 3389
+          Write-Host "======================================="
+          Write-Host "   NGROK RDP ADDRESS (TCP 3389)"
+          Write-Host "======================================="
+
+          .\ngrok\ngrok.exe tcp 3389 --log stdout |
+          Select-String "tcp://"
