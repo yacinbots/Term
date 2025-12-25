@@ -11,9 +11,9 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Download ngrok
+      - name: Download ngrok v3
         run: |
-          Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
 
       - name: Extract ngrok
         run: |
@@ -21,7 +21,7 @@ jobs:
 
       - name: Auth ngrok
         run: |
-          .\ngrok\ngrok.exe authtoken 2gzCXiehyX6Dvdjyam6CeA3P7wN_4ZRSp9hHWtNdUrEMfW7A5
+          .\ngrok\ngrok.exe config add-authtoken 2gzCXiehyX6Dvdjyam6CeA3P7wN_4ZRSp9hHWtNdUrEMfW7A5
 
       - name: Enable RDP
         run: |
