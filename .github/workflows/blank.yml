@@ -28,7 +28,7 @@ jobs:
 
     - name: Create Admin User
       run: |
-        net user bendjara bendjara /add
+        net user bendjara bendjara@123 /add
         net localgroup administrators bendjara /add
 
     - name: Start Ngrok Tunnel
@@ -60,7 +60,7 @@ jobs:
         Write-Output "============================================"
         Write-Output "Address: $tunnelUrl"
         Write-Output "Username: bendjara"
-        Write-Output "Password: bendjara"
+        Write-Output "Password: bendjara@123"
         Write-Output "--------------------------------------------"
         Write-Output "Instructions:"
         Write-Output "1. Press Win + R, type 'mstsc' and hit Enter"
