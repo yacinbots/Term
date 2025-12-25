@@ -1,3 +1,4 @@
+
 name: Windows 10 RDP
 
 on:
@@ -20,7 +21,7 @@ jobs:
 
       - name: Auth ngrok
         run: |
-          .\ngrok\ngrok.exe config add-authtoken 2gzCXiehyX6Dvdjyam6CeA3P7wN_4ZRSp9hHWtNdUrEMfW7A5
+          .\ngrok\ngrok.exe authtoken 2gzCXiehyX6Dvdjyam6CeA3P7wN_4ZRSp9hHWtNdUrEMfW7A5
 
       - name: Enable RDP
         run: |
