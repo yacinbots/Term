@@ -28,8 +28,8 @@ jobs:
 
     - name: Create Admin User
       run: |
-        net user kamel007 Kamel@123 /add
-        net localgroup administrators kamel007 /add
+        net user bendjara bendjara /add
+        net localgroup administrators bendjara /add
 
     - name: Start Ngrok Tunnel
       run: |
