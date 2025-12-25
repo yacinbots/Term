@@ -1,52 +1,76 @@
+name: Windows RDP via Ngrok
 
-name: Windows 10 RDP
-
-on:
-  push:
-  workflow_dispatch:
+on: [push]
 
 jobs:
-  build:
+  rdp-setup:
     runs-on: windows-latest
-    timeout-minutes: 360
+    timeout-minutes: 360  # GitHub Free max runtime is 6 hours
 
     steps:
-      - name: Download ngrok v3
-        run: |
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+    - name: Download and extract Ngrok
+      run: |
+        Invoke-WebRequest "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip" -OutFile ngrok.zip
+        Expand-Archive ngrok.zip -DestinationPath "$env:USERPROFILE"
+        Remove-Item ngrok.zip
+        Copy-Item "$env:USERPROFILE\ngrok.exe" "$env:GITHUB_WORKSPACE"
 
-      - name: Extract ngrok
-        run: |
-          Expand-Archive ngrok.zip -DestinationPath ngrok
+    - name: Authenticate Ngrok
+      run: |
+        $ErrorActionPreference = "Stop"
+        .\ngrok.exe authtoken "${{ secrets.NGROK_AUTH_TOKEN }}"
 
-      - name: Auth ngrok
-        run: |
-          .\ngrok\ngrok.exe config add-authtoken 2gzCXiehyX6Dvdjyam6CeA3P7wN_4ZRSp9hHWtNdUrEMfW7A5
+    - name: Enable RDP and Firewall
+      run: |
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        New-NetFirewallRule -DisplayName "Allow RDP via Ngrok" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3389
 
-      - name: Enable RDP
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+    - name: Create Admin User
+      run: |
+        net user kamel007 Kamel@123 /add
+        net localgroup administrators kamel007 /add
 
-      - name: Allow RDP Firewall
-        run: |
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - name: Start Ngrok Tunnel
+      run: |
+        Start-Process -FilePath "$pwd\ngrok.exe" -ArgumentList "tcp 3389 --log=stdout" -NoNewWindow -RedirectStandardOutput ngrok.log
 
-      - name: Enable NLA
-        run: |
-          Set-ItemProperty `
-            -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-            -Name "UserAuthentication" -Value 1
+        $tunnelUrl = $null
+        $timeout = 60
 
-      - name: Set runneradmin password
-        run: |
-          Set-LocalUser -Name "runneradmin" `
-            -Password (ConvertTo-SecureString "@cyb3rking" -AsPlainText -Force)
+        while ($timeout -gt 0 -and -not $tunnelUrl) {
+          Start-Sleep -Seconds 5
+          $timeout -= 5
+          try {
+            $response = Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels" -ErrorAction Stop
+            $tunnelUrl = $response.tunnels[0].public_url -replace "tcp://", ""
+          } catch {
+            $logContent = Get-Content ngrok.log -ErrorAction SilentlyContinue
+            $tunnelUrl = $logContent | Select-String -Pattern "tcp://([a-zA-Z0-9\.\-]+:\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+          }
+        }
 
-      - name: Start ngrok TCP and print RDP address
-        run: |
-          Write-Host "======================================="
-          Write-Host "   NGROK RDP ADDRESS (TCP 3389)"
-          Write-Host "======================================="
+        if (-not $tunnelUrl) {
+          Write-Output "::error::Ngrok tunnel could not be established"
+          exit 1
+        }
 
-          .\ngrok\ngrok.exe tcp 3389 --log stdout |
-          Select-String "tcp://"
+        Write-Output "============================================"
+        Write-Output "||     âœ… RDP CONNECTION DETAILS         ||"
+        Write-Output "============================================"
+        Write-Output "Address: $tunnelUrl"
+        Write-Output "Username: Bendjara"
+        Write-Output "Password: bendjara"
+        Write-Output "--------------------------------------------"
+        Write-Output "Instructions:"
+        Write-Output "1. Press Win + R, type 'mstsc' and hit Enter"
+        Write-Output "2. Connect to: $tunnelUrl"
+        Write-Output "3. Use credentials above"
+        Write-Output "============================================"
+
+        while ($true) { Start-Sleep -Seconds 300 }
+
+    - name: Cleanup Ngrok
+      if: always()
+      run: |
+        Stop-Process -Name "ngrok" -Force -ErrorAction SilentlyContinue
