@@ -1,55 +1,27 @@
+name: Window 10
 
-name: VPS
-
-on:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
-  secure-vps:
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+  build:
+
+    runs-on: windows-latest
+    timeout-minutes: 9999
+
 
     steps:
-      - name: Install Desktop + VNC + noVNC
-        run: |
-          sudo apt update -y
-          sudo apt install -y \
-            xfce4 xfce4-goodies \
-            tigervnc-standalone-server tigervnc-common \
-            dbus-x11 \
-            novnc websockify \
-            firefox
-
-          mkdir -p ~/.vnc
-          echo "123456" | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-
-          cat <<'EOF' > ~/.vnc/xstartup
-          #!/bin/sh
-          unset SESSION_MANAGER
-          unset DBUS_SESSION_BUS_ADDRESS
-          exec startxfce4 &
-          EOF
-          chmod +x ~/.vnc/xstartup
-
-          vncserver -localhost no -geometry 1280x720 :1
-
-          sudo ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html || true
-          nohup websockify --web=/usr/share/novnc 6080 localhost:5901 >/dev/null 2>&1 &
-
-      - name: Install Tailscale
-        run: |
-          curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vps-${{ github.run_id }}
-          tsIP=$(tailscale ip -4 | head -n 1)
-          echo "=================================="
-          echo "DESKTOP READY"
-          echo "URL: http://$tsIP:6080"
-          echo "PASSWORD: 123456"
-          echo "=================================="
-
-      - name: Keep VPS Alive
-        run: |
-          while true; do
-            sleep 300
-          done
+    - name: Download
+      run: Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+    - name: Extract
+      run: Expand-Archive ngrok.zip
+    - name: Auth
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Enable TS
+      run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+    - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+    - run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "@cyb3rking" -Force)
+    - name: Create Tunnel
+      run: .\ngrok\ngrok.exe tcp 3389
