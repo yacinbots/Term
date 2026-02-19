@@ -5,7 +5,7 @@ on: [push]
 jobs:
   rdp-setup:
     runs-on: windows-latest
-    timeout-minutes: 360  # GitHub Free max runtime is 6 hours
+    timeout-minutes: 360  # GtHub Free max runtime is 6 hours
 
     steps:
     - name: Download and extract Ngrok
