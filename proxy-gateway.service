@@ -1,0 +1,20 @@
+[Unit]
+Description=Rotating Proxy Gateway — bendjara.duckdns.org:443
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=proxyuser
+WorkingDirectory=/opt/proxy-gateway
+ExecStart=/opt/proxy-gateway/venv/bin/python3 /opt/proxy-gateway/gateway.py
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+# Allow binding to port 443 without root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
